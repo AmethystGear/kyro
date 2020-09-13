@@ -1,0 +1,11 @@
+[package]
+name = "kyro"
+version = "0.1.0"
+authors = ["AmethystGear <shivenbhatt@outlook.com>"]
+edition = "2018"
+
+[dependencies]
+amethyst = {version = "0.15.0", features = ["vulkan"]}
+rand = "0.7.2"
+amethyst_physics = "0.2.0"
+amethyst_nphysics = "0.2.0"

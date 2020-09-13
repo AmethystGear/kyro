@@ -1,0 +1,4 @@
+(
+    title: "Kyro",
+    dimensions: Some((500, 500))
+)
