@@ -1,8 +1,14 @@
-
-use amethyst::renderer::{RenderBase3D, rendy::{
-    mesh::{AsVertex, Position, TexCoord, VertexFormat, Normal},
-    shader::SpirvShader, hal::pso::ShaderStageFlags,
-}, pass::Base3DPassDef, mtl::{TexAlbedo, TexEmission}, skinning::JointCombined};
+use amethyst::renderer::{
+    mtl::{TexAlbedo, TexEmission},
+    pass::Base3DPassDef,
+    rendy::{
+        hal::pso::ShaderStageFlags,
+        mesh::{AsVertex, Normal, Position, TexCoord, VertexFormat},
+        shader::SpirvShader,
+    },
+    skinning::JointCombined,
+    RenderBase3D,
+};
 lazy_static::lazy_static! {
     static ref POS_TEX_VERTEX: SpirvShader = SpirvShader::from_bytes(
         include_bytes!("../assets/shaders/compiled/pos_norm_tex.vert.spv"),
@@ -27,7 +33,7 @@ lazy_static::lazy_static! {
 pub struct MyFlatPassDef;
 impl Base3DPassDef for MyFlatPassDef {
     const NAME: &'static str = "Flat";
-    type TextureSet =(TexAlbedo, TexEmission);
+    type TextureSet = (TexAlbedo, TexEmission);
     fn vertex_shader() -> &'static SpirvShader {
         &POS_TEX_VERTEX
     }

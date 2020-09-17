@@ -46,7 +46,6 @@ impl<'s> System<'s> for CameraMotionSystem {
         &mut self,
         (physics_time, input_event_channel, camera_boom_handles, mut transforms): Self::SystemData,
     ) {
-
         // Capture the input
         let motion = {
             let mut m_motion_x = 0.0;
@@ -245,7 +244,7 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
                     &Vector3::new(0.0, self.vertical_input * JUMP_IMPULSE, 0.0),
                 );
                 self.jump_time = 0.0;
-            }else{
+            } else {
                 // In Air
                 motion_factor = 0.2;
                 self.jump_time += physics_time.delta_seconds() * (1.0 / JUMP_TIME);

@@ -1,47 +1,44 @@
 mod low_poly_shader;
 mod perlin;
-use perlin::generate_perlin_noise;
-use low_poly_shader::MyRenderFlat3D;
 use amethyst::{
+    assets::AssetLoaderSystemData,
     core::{
         math::{Point3, Vector3},
-        timing::Time,
         transform::{Transform, TransformBundle},
         Parent,
     },
     input::{InputBundle, StringBindings},
     prelude::*,
     renderer::{
+        self,
         camera::Camera,
         light,
         palette::{LinSrgba, Srgb},
-        plugins::{RenderToWindow},
-        rendy::mesh::{Normal, Position, Tangent, TexCoord, MeshBuilder},
-        shape::Shape,
+        plugins::RenderToWindow,
+        rendy::mesh::{MeshBuilder, Normal, Position, TexCoord},
         types,
+        types::{Mesh, MeshData},
         visibility::BoundingSphere,
-        RenderingBundle, Factory, self,
+        RenderingBundle,
     },
     utils::application_root_dir,
     window::ScreenDimensions,
-    Error, assets::AssetLoaderSystemData,
+    Error,
 };
+use low_poly_shader::MyRenderFlat3D;
+use perlin::generate_perlin_noise;
 use rand::prelude::*;
 
 use amethyst_nphysics::NPhysicsBackend;
 use amethyst_physics::{prelude::*, PhysicsBundle};
 use renderer::rendy::mesh::Indices;
-use std::cmp::max;
 
 mod components;
 mod systems;
 mod visual_utils;
 
 #[derive(Default)]
-struct Example {
-    time_bank: f32,
-    num_cubes: usize
-}
+struct Example;
 
 impl SimpleState for Example {
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>) {
@@ -60,7 +57,6 @@ impl SimpleState for Example {
             2.0,
         );*/
 
-
         // Create floor
         create_floor(data.world, 2000.0f32, 256, random());
 
@@ -68,27 +64,6 @@ impl SimpleState for Example {
         create_character_entity(data.world);
 
         // Create Box
-    }
-
-    fn update(&mut self, data: &mut StateData<'_, GameData<'_, '_>>) -> SimpleTrans {
-        // TODO this code must go inside a System.
-        // Spawn a new cube each X sec.
-        {
-            let time = data.world.fetch::<Time>();
-            self.time_bank += time.delta_seconds();
-        }
-
-        let time_threshold = 2.0;
-        let spawn_scale = 10.0f32; // Scale
-
-        let mut rng = rand::thread_rng();
-
-        while self.time_bank > time_threshold && self.num_cubes < 20 {
-            self.time_bank -= time_threshold;
-            self.num_cubes += 1;
-        }
-
-        Trans::None
     }
 }
 
@@ -156,8 +131,6 @@ fn create_floor(world: &mut World, map_size: f32, num_divisions: u16, seed: i64)
         physics_world.rigid_body_server().create(&rb_desc)
     };
 
-    
-
     let mut indicies = vec![];
     let mut posns = vec![];
     let mut norms = vec![];
@@ -173,19 +146,19 @@ fn create_floor(world: &mut World, map_size: f32, num_divisions: u16, seed: i64)
                 raw = 100.0;
             }
             let posn = Position {
-                0: [x_flt, raw , z_flt]
+                0: [x_flt, raw, z_flt],
             };
             i += 1;
             posns.push(posn);
             let norm = Normal {
-                0: [0.0f32, 0.0f32, 0.0f32]
+                0: [0.0f32, 0.0f32, 0.0f32],
             };
             norms.push(norm);
             let coord = TexCoord {
-                0: [0.0f32, 0.0f32] 
+                0: [0.0f32, 0.0f32],
             };
             coords.push(coord);
-            
+
             if x != num_divisions - 1 && y != num_divisions - 1 {
                 let curr = x + y * num_divisions;
                 // first tri
@@ -200,32 +173,26 @@ fn create_floor(world: &mut World, map_size: f32, num_divisions: u16, seed: i64)
         }
     }
 
-    
-
     let mut indicies_collision = Vec::new();
-    for i in 0..indicies.len()/3 {
+    for i in 0..indicies.len() / 3 {
         indicies_collision.push(Point3::from_slice(&[
-            indicies[i * 3] as usize, 
-            indicies[i * 3 + 1] as usize, 
-            indicies[i * 3 + 2] as usize
+            indicies[i * 3] as usize,
+            indicies[i * 3 + 1] as usize,
+            indicies[i * 3 + 2] as usize,
         ]));
     }
     let mut points_collision = Vec::new();
     for p in &posns {
-        points_collision.push(Point3::from_slice(&[
-            p.0[0],
-            p.0[1],
-            p.0[2]
-        ]))
+        points_collision.push(Point3::from_slice(&[p.0[0], p.0[1], p.0[2]]))
     }
-    let mesh = world.exec(|loader: AssetLoaderSystemData<amethyst::renderer::types::Mesh>| {
+    let mesh = world.exec(|loader: AssetLoaderSystemData<Mesh>| {
         loader.load_from_data(
-            amethyst::renderer::types::MeshData(
-                amethyst::renderer::rendy::mesh::MeshBuilder::new()
+            MeshData(
+                MeshBuilder::new()
                     .with_vertices(posns)
                     .with_vertices(norms)
                     .with_vertices(coords)
-                    .with_indices(Indices::U16(indicies.into()))
+                    .with_indices(Indices::U16(indicies.into())),
             ),
             (),
         )
@@ -234,13 +201,11 @@ fn create_floor(world: &mut World, map_size: f32, num_divisions: u16, seed: i64)
     let shape = {
         let desc = ShapeDesc::TriMesh {
             indices: indicies_collision,
-            points: points_collision
+            points: points_collision,
         };
         let physics_world = world.fetch::<PhysicsWorld<f32>>();
         physics_world.shape_server().create(&desc)
     };
-    
-
 
     let mat = visual_utils::create_material(
         world,
@@ -253,7 +218,10 @@ fn create_floor(world: &mut World, map_size: f32, num_divisions: u16, seed: i64)
         .create_entity()
         .with(mesh)
         .with(mat)
-        .with(BoundingSphere::new(Point3::new(map_size/2.0, 0.0, map_size/2.0), map_size))
+        .with(BoundingSphere::new(
+            Point3::new(map_size / 2.0, 0.0, map_size / 2.0),
+            map_size,
+        ))
         .with(Transform::default())
         .with(shape)
         .with(rb)
