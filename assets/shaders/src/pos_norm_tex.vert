@@ -24,6 +24,6 @@ void main() {
     vertex.position = vertex_position.xyz;
     vertex.tex_coord = tex_coord;
     vertex.color = tint;
-    vertex.normal = (vec4(position, 1.0)).xyz;
+    vertex.normal = (proj_view * vec4(position, 1.0)).xyz;
     gl_Position = proj_view * vertex_position;
 }
