@@ -13,9 +13,9 @@ use amethyst_physics::prelude::*;
 use crate::components::*;
 
 const MOUSE_SENSITIVITY: f32 = 0.2;
-const MAX_PITCH_ANGLE: f32 = 20.0;
+const MAX_PITCH_ANGLE: f32 = 60.0;
 const FORCE_MULTIPLIER: f32 = 600.0;
-const JUMP_IMPULSE: f32 = 55.0;
+const JUMP_IMPULSE: f32 = 25.0;
 const JUMP_TIME: f32 = 0.25;
 const JUMP_DRAG_POWER: f32 = 5.0;
 const JUMP_MAX_BF: f32 = 0.7;
@@ -266,7 +266,7 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
                 .linear_velocity(body_tag.get());
 
             let mut bk_force = (velocity / physics_time.delta_seconds()) * -1.0 * breaking_factor;
-            bk_force.y = bk_force.y.min(0.0); // Don't slow down when falling
+            bk_force.y = 0.0;
             physics_world
                 .rigid_body_server()
                 .apply_force(body_tag.get(), &bk_force);

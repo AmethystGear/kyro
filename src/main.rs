@@ -1,6 +1,10 @@
+mod low_poly_shader;
+mod perlin;
+use perlin::generate_perlin_noise;
+use low_poly_shader::MyRenderFlat3D;
 use amethyst::{
     core::{
-        math::Vector3,
+        math::{Point3, Vector3},
         timing::Time,
         transform::{Transform, TransformBundle},
         Parent,
@@ -11,21 +15,23 @@ use amethyst::{
         camera::Camera,
         light,
         palette::{LinSrgba, Srgb},
-        plugins::{RenderShaded3D, RenderToWindow},
-        rendy::mesh::{Normal, Position, Tangent, TexCoord},
+        plugins::{RenderToWindow},
+        rendy::mesh::{Normal, Position, Tangent, TexCoord, MeshBuilder},
         shape::Shape,
         types,
         visibility::BoundingSphere,
-        RenderingBundle,
+        RenderingBundle, Factory, self,
     },
     utils::application_root_dir,
     window::ScreenDimensions,
-    Error,
+    Error, assets::AssetLoaderSystemData,
 };
 use rand::prelude::*;
 
 use amethyst_nphysics::NPhysicsBackend;
 use amethyst_physics::{prelude::*, PhysicsBundle};
+use renderer::rendy::mesh::Indices;
+use std::cmp::max;
 
 mod components;
 mod systems;
@@ -43,24 +49,25 @@ impl SimpleState for Example {
         add_light_entity(
             data.world,
             Srgb::new(1.0, 1.0, 1.0),
-            Vector3::new(-0.2, -1.0, -0.2),
+            Vector3::new(-0.0, -1.0, -0.0),
             1.0,
         );
+        /*
         add_light_entity(
             data.world,
-            Srgb::new(1.0, 0.8, 0.8),
-            Vector3::new(0.2, -1.0, 0.2),
-            1.0,
-        );
+            Srgb::new(0.0, 0.0, 1.0),
+            Vector3::new(0.2, 1.0, 0.2),
+            2.0,
+        );*/
+
 
         // Create floor
-        create_floor(data.world);
+        create_floor(data.world, 2000.0f32, 256, random());
 
         // Create the character + camera.
         create_character_entity(data.world);
 
         // Create Box
-        add_cube_entity(data.world, Vector3::new(0.0, 6.0, 0.0));
     }
 
     fn update(&mut self, data: &mut StateData<'_, GameData<'_, '_>>) -> SimpleTrans {
@@ -77,14 +84,6 @@ impl SimpleState for Example {
         let mut rng = rand::thread_rng();
 
         while self.time_bank > time_threshold && self.num_cubes < 20 {
-            add_cube_entity(
-                data.world,
-                Vector3::new(
-                    rng.gen::<f32>() * spawn_scale - spawn_scale * 0.5,
-                    6.0,
-                    rng.gen::<f32>() * spawn_scale - spawn_scale * 0.5,
-                ),
-            );
             self.time_bank -= time_threshold;
             self.num_cubes += 1;
         }
@@ -128,9 +127,9 @@ fn main() -> Result<(), Error> {
                 .with_plugin(
                     RenderToWindow::from_config_path(display_config_path)
                         .unwrap()
-                        .with_clear([0.34, 0.36, 0.52, 1.0]),
+                        .with_clear([0.7188, 0.2578, 0.0586, 1.0]),
                 )
-                .with_plugin(RenderShaded3D::default()),
+                .with_plugin(MyRenderFlat3D::default()),
         )?;
     let mut game = Application::build(assets_dir, Example::default())?.build(game_data)?;
     game.run();
@@ -148,15 +147,7 @@ fn add_light_entity(world: &mut World, color: Srgb, direction: Vector3<f32>, int
     world.create_entity().with(light).build();
 }
 
-fn create_floor(world: &mut World) {
-    let shape = {
-        let desc = ShapeDesc::Cube {
-            half_extents: Vector3::new(20.0, 0.2, 20.0),
-        };
-        let physics_world = world.fetch::<PhysicsWorld<f32>>();
-        physics_world.shape_server().create(&desc)
-    };
-
+fn create_floor(world: &mut World, map_size: f32, num_divisions: u16, seed: i64) {
     let rb = {
         let mut rb_desc = RigidBodyDesc::default();
         rb_desc.mode = BodyMode::Static;
@@ -165,19 +156,95 @@ fn create_floor(world: &mut World) {
         physics_world.rigid_body_server().create(&rb_desc)
     };
 
-    let mesh = {
-        let mesh_data: types::MeshData = Shape::Cube
-            .generate::<(Vec<Position>, Vec<Normal>, Vec<Tangent>, Vec<TexCoord>)>(Some((
-                20.0, 0.2, 20.0,
-            )))
-            .into();
+    
 
-        visual_utils::create_mesh(world, mesh_data)
+    let mut indicies = vec![];
+    let mut posns = vec![];
+    let mut norms = vec![];
+    let mut coords = vec![];
+    let noise = generate_perlin_noise(num_divisions, num_divisions, 7, seed);
+    let mut i = 0;
+    for y in 0..num_divisions {
+        for x in 0..num_divisions {
+            let x_flt = (x as f32) / (num_divisions as f32) * map_size;
+            let z_flt = (y as f32) / (num_divisions as f32) * map_size;
+            let mut raw = noise[i] as f32 * 300.0;
+            if raw < 100.0 {
+                raw = 100.0;
+            }
+            let posn = Position {
+                0: [x_flt, raw , z_flt]
+            };
+            i += 1;
+            posns.push(posn);
+            let norm = Normal {
+                0: [0.0f32, 0.0f32, 0.0f32]
+            };
+            norms.push(norm);
+            let coord = TexCoord {
+                0: [0.0f32, 0.0f32] 
+            };
+            coords.push(coord);
+            
+            if x != num_divisions - 1 && y != num_divisions - 1 {
+                let curr = x + y * num_divisions;
+                // first tri
+                indicies.push(curr + 1 + num_divisions);
+                indicies.push(curr + 1);
+                indicies.push(curr);
+                // second tri
+                indicies.push(curr + num_divisions);
+                indicies.push(curr + 1 + num_divisions);
+                indicies.push(curr);
+            }
+        }
+    }
+
+    
+
+    let mut indicies_collision = Vec::new();
+    for i in 0..indicies.len()/3 {
+        indicies_collision.push(Point3::from_slice(&[
+            indicies[i * 3] as usize, 
+            indicies[i * 3 + 1] as usize, 
+            indicies[i * 3 + 2] as usize
+        ]));
+    }
+    let mut points_collision = Vec::new();
+    for p in &posns {
+        points_collision.push(Point3::from_slice(&[
+            p.0[0],
+            p.0[1],
+            p.0[2]
+        ]))
+    }
+    let mesh = world.exec(|loader: AssetLoaderSystemData<amethyst::renderer::types::Mesh>| {
+        loader.load_from_data(
+            amethyst::renderer::types::MeshData(
+                amethyst::renderer::rendy::mesh::MeshBuilder::new()
+                    .with_vertices(posns)
+                    .with_vertices(norms)
+                    .with_vertices(coords)
+                    .with_indices(Indices::U16(indicies.into()))
+            ),
+            (),
+        )
+    });
+
+    let shape = {
+        let desc = ShapeDesc::TriMesh {
+            indices: indicies_collision,
+            points: points_collision
+        };
+        let physics_world = world.fetch::<PhysicsWorld<f32>>();
+        physics_world.shape_server().create(&desc)
     };
+    
+
 
     let mat = visual_utils::create_material(
         world,
-        LinSrgba::new(0.0, 1.0, 0.0, 1.0),
+        LinSrgba::new(0.7188, 0.1578, 0.0, 1.0),
         0.0, // Metallic
         1.0, // Roughness
     );
@@ -186,56 +253,8 @@ fn create_floor(world: &mut World) {
         .create_entity()
         .with(mesh)
         .with(mat)
-        .with(BoundingSphere::origin(20.0))
+        .with(BoundingSphere::new(Point3::new(map_size/2.0, 0.0, map_size/2.0), map_size))
         .with(Transform::default())
-        .with(shape)
-        .with(rb)
-        .build();
-}
-
-fn add_cube_entity(world: &mut World, pos: Vector3<f32>) {
-    let shape = {
-        let desc = ShapeDesc::Cube {
-            half_extents: Vector3::new(1.0, 1.0, 1.0),
-        };
-        let physics_world = world.fetch::<PhysicsWorld<f32>>();
-        physics_world.shape_server().create(&desc)
-    };
-
-    let rb = {
-        let rb_desc = RigidBodyDesc::default();
-
-        let physics_world = world.fetch::<PhysicsWorld<f32>>();
-        physics_world.rigid_body_server().create(&rb_desc)
-    };
-
-    let mesh = {
-        let mesh_data: types::MeshData = Shape::Cube
-            .generate::<(Vec<Position>, Vec<Normal>, Vec<Tangent>, Vec<TexCoord>)>(Some((
-                1.0, 1.0, 1.0,
-            )))
-            .into();
-
-        visual_utils::create_mesh(world, mesh_data)
-    };
-
-    let mut rng = rand::thread_rng();
-    let mat = visual_utils::create_material(
-        world,
-        LinSrgba::new(rng.gen(), rng.gen(), rng.gen(), rng.gen()),
-        1.0,
-        0.0,
-    );
-
-    let mut transf = Transform::default();
-    transf.set_translation(pos);
-
-    world
-        .create_entity()
-        .with(mesh)
-        .with(mat)
-        .with(BoundingSphere::origin(1.0))
-        .with(transf)
         .with(shape)
         .with(rb)
         .build();
@@ -269,27 +288,11 @@ fn create_character_entity(world: &mut World) {
             physics_world.rigid_body_server().create(&rb_desc)
         };
 
-        let mesh = {
-            let mesh_data: types::MeshData = Shape::Cube
-                .generate::<(Vec<Position>, Vec<Normal>, Vec<Tangent>, Vec<TexCoord>)>(Some((
-                    0.5, 1.5, 0.5,
-                )))
-                .into();
-
-            visual_utils::create_mesh(world, mesh_data)
-        };
-
-        let mat =
-            visual_utils::create_material(world, LinSrgba::new(0.65, 1.0, 0.90, 1.0), 0.0, 1.0);
-
         let mut transf = Transform::default();
-        transf.set_translation(Vector3::new(-3.0, 2.0, -3.0));
+        transf.set_translation(Vector3::new(500.0, 500.0, 500.0));
 
         world
             .create_entity()
-            .with(mesh)
-            .with(mat)
-            .with(BoundingSphere::origin(1.0))
             .with(transf)
             .with(shape)
             .with(rb)
@@ -299,7 +302,7 @@ fn create_character_entity(world: &mut World) {
 
     let camera_boom_handle = {
         let mut transf = Transform::default();
-        transf.set_translation_y(1.5);
+        transf.set_translation_y(0.0);
 
         world
             .create_entity()
@@ -311,7 +314,7 @@ fn create_character_entity(world: &mut World) {
 
     let _camera = {
         let mut camera_transform = Transform::default();
-        camera_transform.set_translation_xyz(0.0, 0.0, 6.0);
+        camera_transform.set_translation_xyz(0.0, 0.0, 0.0);
 
         let (width, height) = {
             let dim = world.read_resource::<ScreenDimensions>();
