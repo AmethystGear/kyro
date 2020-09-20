@@ -6,10 +6,10 @@ edition = "2018"
 
 [dependencies]
 amethyst = {version = "0.15.0", features = ["vulkan", "no-slow-safety-checks"]}
-lazy_static = "1.4.0"
 rand = "0.7.2"
 amethyst_physics = "0.2.0"
 amethyst_nphysics = "0.2.0"
-derivative = "2.1.1"
-glsl-layout = "0.3.2"
-failure = "0.1.7"
+noise = "0.6.0"
+ron = "0.6.2"
+serde = { version = "1.0.116", features = ["derive"] }
+lazy_static = "1.4.0"

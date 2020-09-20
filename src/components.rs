@@ -15,3 +15,11 @@ pub struct CharacterBody;
 impl Component for CharacterBody {
     type Storage = NullStorage<Self>;
 }
+
+/// Tag used to identify Chunk entities
+#[derive(Default)]
+pub struct Chunk;
+
+impl Component for Chunk {
+    type Storage = NullStorage<Self>;
+}

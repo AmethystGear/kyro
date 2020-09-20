@@ -16,9 +16,6 @@ const MOUSE_SENSITIVITY: f32 = 0.2;
 const MAX_PITCH_ANGLE: f32 = 60.0;
 const FORCE_MULTIPLIER: f32 = 600.0;
 const JUMP_IMPULSE: f32 = 25.0;
-const JUMP_TIME: f32 = 0.25;
-const JUMP_DRAG_POWER: f32 = 5.0;
-const JUMP_MAX_BF: f32 = 0.7;
 
 #[derive(Debug)]
 pub struct CameraMotionSystem {
@@ -118,6 +115,7 @@ pub struct CharacterMotionControllerSystem {
     horizontal_input: Vector3<f32>,
     vertical_input: f32,
     jump_time: f32,
+    sprint: bool,
     /// Contact events storage, This motion system is designed to only control a
     /// single character so store the contacts events here is safe.
     contact_events: Vec<ContactEvent<f32>>,
@@ -130,6 +128,7 @@ impl CharacterMotionControllerSystem {
             horizontal_input: Vector3::zeros(),
             vertical_input: 0.0,
             jump_time: 0.0,
+            sprint: false,
             contact_events: Vec::new(),
         }
     }
@@ -176,6 +175,9 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
                     "Jump" => {
                         self.vertical_input += 1.0;
                     }
+                    "Sprint" => {
+                        self.sprint = true;
+                    }
                     _ => {}
                 }
             } else if let InputEvent::ActionReleased(action) = e {
@@ -195,9 +197,20 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
                     "Jump" => {
                         self.vertical_input -= 1.0;
                     }
+                    "Sprint" => {
+                        println!("release sprint");
+                        self.sprint = false;
+                    }
                     _ => {}
                 }
             }
+        }
+        let horizontal_input;
+        if self.sprint {
+            println!("sprinting");
+            horizontal_input = self.horizontal_input.scale(3.0);
+        } else {
+            horizontal_input = self.horizontal_input;
         }
 
         let mut camera_pos = Matrix4::<f32>::identity();
@@ -234,8 +247,6 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
                 is_in_air
             };
 
-            let mut motion_factor = 1.0;
-            let mut breaking_factor = 1.0;
             if !is_in_air {
                 // On ground
                 // Apply jumping impulse
@@ -244,27 +255,21 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
                     &Vector3::new(0.0, self.vertical_input * JUMP_IMPULSE, 0.0),
                 );
                 self.jump_time = 0.0;
-            } else {
-                // In Air
-                motion_factor = 0.2;
-                self.jump_time += physics_time.delta_seconds() * (1.0 / JUMP_TIME);
-                self.jump_time = self.jump_time.min(1.0);
-                breaking_factor = self.jump_time.powf(JUMP_DRAG_POWER).min(JUMP_MAX_BF);
             }
 
             // Apply motion force
-            let mut force = camera_pos.transform_vector(&self.horizontal_input);
+            let mut force = camera_pos.transform_vector(&horizontal_input);
             force.y = 0.0; // Don't apply any force on Y axis
             physics_world
                 .rigid_body_server()
-                .apply_force(body_tag.get(), &(force * FORCE_MULTIPLIER * motion_factor));
+                .apply_force(body_tag.get(), &(force * FORCE_MULTIPLIER));
 
             // Compute breaking force
             let velocity = physics_world
                 .rigid_body_server()
                 .linear_velocity(body_tag.get());
 
-            let mut bk_force = (velocity / physics_time.delta_seconds()) * -1.0 * breaking_factor;
+            let mut bk_force = (velocity / physics_time.delta_seconds()) * -1.0;
             bk_force.y = 0.0;
             physics_world
                 .rigid_body_server()

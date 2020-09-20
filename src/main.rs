@@ -1,5 +1,3 @@
-mod low_poly_shader;
-mod perlin;
 use amethyst::{
     assets::AssetLoaderSystemData,
     core::{
@@ -7,6 +5,7 @@ use amethyst::{
         transform::{Transform, TransformBundle},
         Parent,
     },
+    ecs::Entity,
     input::{InputBundle, StringBindings},
     prelude::*,
     renderer::{
@@ -14,8 +13,8 @@ use amethyst::{
         camera::Camera,
         light,
         palette::{LinSrgba, Srgb},
-        plugins::RenderToWindow,
-        rendy::mesh::{MeshBuilder, Normal, Position, TexCoord},
+        plugins::{RenderShaded3D, RenderToWindow},
+        rendy::mesh::MeshBuilder,
         types,
         types::{Mesh, MeshData},
         visibility::BoundingSphere,
@@ -25,20 +24,26 @@ use amethyst::{
     window::ScreenDimensions,
     Error,
 };
-use low_poly_shader::MyRenderFlat3D;
-use perlin::generate_perlin_noise;
 use rand::prelude::*;
 
 use amethyst_nphysics::NPhysicsBackend;
 use amethyst_physics::{prelude::*, PhysicsBundle};
 use renderer::rendy::mesh::Indices;
 
+mod marching_cubes;
 mod components;
-mod systems;
+mod character_systems;
+mod terrain;
 mod visual_utils;
+mod matrix_3d;
+
+use terrain::Terrain;
 
 #[derive(Default)]
-struct Example;
+struct Example {
+    terrain: Option<Terrain>,
+    alive_chunks: Vec<Entity>,
+}
 
 impl SimpleState for Example {
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>) {
@@ -46,7 +51,7 @@ impl SimpleState for Example {
         add_light_entity(
             data.world,
             Srgb::new(1.0, 1.0, 1.0),
-            Vector3::new(-0.0, -1.0, -0.0),
+            Vector3::new(-0.5, -1.0, -0.5),
             1.0,
         );
         /*
@@ -57,13 +62,24 @@ impl SimpleState for Example {
             2.0,
         );*/
 
-        // Create floor
-        create_floor(data.world, 2000.0f32, 256, random());
-
+        // Create terrain
+        /*
+        let mut terrain = Terrain::new(random(), 100, 1000.0);
+        data.world.register::<components::Chunk>();
+        create_chunk(data.world, &mut terrain, 0, 0);
+        create_chunk(data.world, &mut terrain, 1, 0);
+        create_chunk(data.world, &mut terrain, 0, 1);
+        create_chunk(data.world, &mut terrain, 1, 1);
+        self.terrain = Some(terrain);
+        */
         // Create the character + camera.
         create_character_entity(data.world);
 
         // Create Box
+    }
+
+    fn update(&mut self, data: &mut StateData<'_, GameData<'_, '_>>) -> SimpleTrans {
+        return Trans::None;
     }
 }
 
@@ -82,7 +98,7 @@ fn main() -> Result<(), Error> {
                 .unwrap(),
         )?
         .with(
-            systems::CameraMotionSystem::new(),
+            character_systems::CameraMotionSystem::new(),
             "camera_motion_system",
             &["input_system"],
         )
@@ -92,7 +108,7 @@ fn main() -> Result<(), Error> {
                 .with_frames_per_seconds(60)
                 .with_max_sub_steps(8) // Safety
                 .with_pre_physics(
-                    systems::CharacterMotionControllerSystem::new(),
+                    character_systems::CharacterMotionControllerSystem::new(),
                     String::from("character_motion_controller"),
                     vec![],
                 ),
@@ -104,7 +120,7 @@ fn main() -> Result<(), Error> {
                         .unwrap()
                         .with_clear([0.7188, 0.2578, 0.0586, 1.0]),
                 )
-                .with_plugin(MyRenderFlat3D::default()),
+                .with_plugin(RenderShaded3D::default()),
         )?;
     let mut game = Application::build(assets_dir, Example::default())?.build(game_data)?;
     game.run();
@@ -121,8 +137,8 @@ fn add_light_entity(world: &mut World, color: Srgb, direction: Vector3<f32>, int
 
     world.create_entity().with(light).build();
 }
-
-fn create_floor(world: &mut World, map_size: f32, num_divisions: u16, seed: i64) {
+/*
+fn create_chunk(world: &mut World, terrain: &mut Terrain, chunk_x: i16, chunk_z: i16) -> Entity {
     let rb = {
         let mut rb_desc = RigidBodyDesc::default();
         rb_desc.mode = BodyMode::Static;
@@ -131,55 +147,10 @@ fn create_floor(world: &mut World, map_size: f32, num_divisions: u16, seed: i64)
         physics_world.rigid_body_server().create(&rb_desc)
     };
 
-    let mut indicies = vec![];
-    let mut posns = vec![];
-    let mut norms = vec![];
-    let mut coords = vec![];
-    let noise = generate_perlin_noise(num_divisions, num_divisions, 7, seed);
-    let mut i = 0;
-    for y in 0..num_divisions {
-        for x in 0..num_divisions {
-            let x_flt = (x as f32) / (num_divisions as f32) * map_size;
-            let z_flt = (y as f32) / (num_divisions as f32) * map_size;
-            let mut raw = noise[i] as f32 * 300.0;
-            if raw < 100.0 {
-                raw = 100.0;
-            }
-            let posn = Position {
-                0: [x_flt, raw, z_flt],
-            };
-            i += 1;
-            posns.push(posn);
-            let norm = Normal {
-                0: [0.0f32, 0.0f32, 0.0f32],
-            };
-            norms.push(norm);
-            let coord = TexCoord {
-                0: [0.0f32, 0.0f32],
-            };
-            coords.push(coord);
-
-            if x != num_divisions - 1 && y != num_divisions - 1 {
-                let curr = x + y * num_divisions;
-                // first tri
-                indicies.push(curr + 1 + num_divisions);
-                indicies.push(curr + 1);
-                indicies.push(curr);
-                // second tri
-                indicies.push(curr + num_divisions);
-                indicies.push(curr + 1 + num_divisions);
-                indicies.push(curr);
-            }
-        }
-    }
-
+    let (indicies, posns, norms, coords) = terrain.get_chunk(chunk_x, chunk_z).get_mesh_data();
     let mut indicies_collision = Vec::new();
-    for i in 0..indicies.len() / 3 {
-        indicies_collision.push(Point3::from_slice(&[
-            indicies[i * 3] as usize,
-            indicies[i * 3 + 1] as usize,
-            indicies[i * 3 + 2] as usize,
-        ]));
+    for i in 0..posns.len() / 3 {
+        indicies_collision.push(Point3::from_slice(&[i * 3, i * 3 + 1, i * 3 + 2]));
     }
     let mut points_collision = Vec::new();
     for p in &posns {
@@ -214,20 +185,27 @@ fn create_floor(world: &mut World, map_size: f32, num_divisions: u16, seed: i64)
         1.0, // Roughness
     );
 
-    world
+    let mut transform = Transform::default();
+    transform.set_translation_xyz(chunk_x as f32 * terrain.chunk_size(), 0.0,chunk_z as f32 * terrain.chunk_size());
+    return world
         .create_entity()
         .with(mesh)
         .with(mat)
         .with(BoundingSphere::new(
-            Point3::new(map_size / 2.0, 0.0, map_size / 2.0),
-            map_size,
+            Point3::new(
+                terrain.chunk_size() / 2.0 + chunk_x as f32 * terrain.chunk_size(),
+                0.0,
+                terrain.chunk_size() / 2.0 + chunk_z as f32 * terrain.chunk_size(),
+            ),
+            terrain.chunk_size() * 2.0,
         ))
-        .with(Transform::default())
+        .with(transform)
         .with(shape)
         .with(rb)
+        .with(components::Chunk)
         .build();
 }
-
+*/
 /// Creates three entities:
 /// 1. The character (With RigidBody).
 /// 2. The camera boom handle attached to the character.
@@ -257,7 +235,7 @@ fn create_character_entity(world: &mut World) {
         };
 
         let mut transf = Transform::default();
-        transf.set_translation(Vector3::new(500.0, 500.0, 500.0));
+        transf.set_translation(Vector3::new(500.0, 100.0, 500.0));
 
         world
             .create_entity()
