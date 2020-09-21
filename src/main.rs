@@ -30,20 +30,17 @@ use amethyst_nphysics::NPhysicsBackend;
 use amethyst_physics::{prelude::*, PhysicsBundle};
 use renderer::rendy::mesh::Indices;
 
-mod marching_cubes;
-mod components;
 mod character_systems;
+mod components;
+mod marching_cubes;
+mod matrix_3d;
 mod terrain;
 mod visual_utils;
-mod matrix_3d;
 
 use terrain::Terrain;
 
 #[derive(Default)]
-struct Example {
-    terrain: Option<Terrain>,
-    alive_chunks: Vec<Entity>,
-}
+struct Example;
 
 impl SimpleState for Example {
     fn on_start(&mut self, data: StateData<'_, GameData<'_, '_>>) {
@@ -51,35 +48,33 @@ impl SimpleState for Example {
         add_light_entity(
             data.world,
             Srgb::new(1.0, 1.0, 1.0),
-            Vector3::new(-0.5, -1.0, -0.5),
+            Vector3::new(-0.1, -1.0, -0.1),
             1.0,
         );
-        /*
         add_light_entity(
             data.world,
-            Srgb::new(0.0, 0.0, 1.0),
-            Vector3::new(0.2, 1.0, 0.2),
-            2.0,
-        );*/
+            Srgb::new(1.0, 1.0, 1.0),
+            Vector3::new(0.1, 1.0, 0.1),
+            0.2,
+        );
 
         // Create terrain
-        /*
-        let mut terrain = Terrain::new(random(), 100, 1000.0);
+
+        let mut terrain = Terrain::new(random(), 15, 1.0, 0.05);
         data.world.register::<components::Chunk>();
-        create_chunk(data.world, &mut terrain, 0, 0);
-        create_chunk(data.world, &mut terrain, 1, 0);
-        create_chunk(data.world, &mut terrain, 0, 1);
-        create_chunk(data.world, &mut terrain, 1, 1);
-        self.terrain = Some(terrain);
-        */
+        let size = 3;
+        for z in -size..(size + 1) {
+            for y in -size..(size + 1) {
+                for x in -size..(size + 1) {
+                    create_chunk(data.world, &mut terrain, x, y, z);
+                }
+            }
+        }
+
+        println!("D");
+
         // Create the character + camera.
         create_character_entity(data.world);
-
-        // Create Box
-    }
-
-    fn update(&mut self, data: &mut StateData<'_, GameData<'_, '_>>) -> SimpleTrans {
-        return Trans::None;
     }
 }
 
@@ -137,8 +132,14 @@ fn add_light_entity(world: &mut World, color: Srgb, direction: Vector3<f32>, int
 
     world.create_entity().with(light).build();
 }
-/*
-fn create_chunk(world: &mut World, terrain: &mut Terrain, chunk_x: i16, chunk_z: i16) -> Entity {
+
+fn create_chunk(
+    world: &mut World,
+    terrain: &mut Terrain,
+    chunk_x: i16,
+    chunk_y: i16,
+    chunk_z: i16,
+) {
     let rb = {
         let mut rb_desc = RigidBodyDesc::default();
         rb_desc.mode = BodyMode::Static;
@@ -146,8 +147,11 @@ fn create_chunk(world: &mut World, terrain: &mut Terrain, chunk_x: i16, chunk_z:
         let physics_world = world.fetch::<PhysicsWorld<f32>>();
         physics_world.rigid_body_server().create(&rb_desc)
     };
-
-    let (indicies, posns, norms, coords) = terrain.get_chunk(chunk_x, chunk_z).get_mesh_data();
+    let (indicies, posns, norms, coords) =
+        terrain.get_chunk(chunk_x, chunk_y, chunk_z).get_mesh_data();
+    if indicies.len() == 0 {
+        return;
+    }
     let mut indicies_collision = Vec::new();
     for i in 0..posns.len() / 3 {
         indicies_collision.push(Point3::from_slice(&[i * 3, i * 3 + 1, i * 3 + 2]));
@@ -186,18 +190,22 @@ fn create_chunk(world: &mut World, terrain: &mut Terrain, chunk_x: i16, chunk_z:
     );
 
     let mut transform = Transform::default();
-    transform.set_translation_xyz(chunk_x as f32 * terrain.chunk_size(), 0.0,chunk_z as f32 * terrain.chunk_size());
-    return world
+    transform.set_translation_xyz(
+        chunk_x as f32 * terrain.chunk_size(),
+        chunk_y as f32 * terrain.chunk_size(),
+        chunk_z as f32 * terrain.chunk_size(),
+    );
+    world
         .create_entity()
         .with(mesh)
         .with(mat)
         .with(BoundingSphere::new(
             Point3::new(
-                terrain.chunk_size() / 2.0 + chunk_x as f32 * terrain.chunk_size(),
-                0.0,
-                terrain.chunk_size() / 2.0 + chunk_z as f32 * terrain.chunk_size(),
+                terrain.chunk_size() / 2.0,
+                terrain.chunk_size() / 2.0,
+                terrain.chunk_size() / 2.0,
             ),
-            terrain.chunk_size() * 2.0,
+            terrain.chunk_size() * 1.5,
         ))
         .with(transform)
         .with(shape)
@@ -205,7 +213,7 @@ fn create_chunk(world: &mut World, terrain: &mut Terrain, chunk_x: i16, chunk_z:
         .with(components::Chunk)
         .build();
 }
-*/
+
 /// Creates three entities:
 /// 1. The character (With RigidBody).
 /// 2. The camera boom handle attached to the character.
@@ -214,7 +222,7 @@ fn create_character_entity(world: &mut World) {
     let character = {
         let shape = {
             let desc = ShapeDesc::Capsule {
-                half_height: 1.0,
+                half_height: 0.75,
                 radius: 0.5,
             };
             let physics_world = world.fetch::<PhysicsWorld<f32>>();
@@ -235,7 +243,7 @@ fn create_character_entity(world: &mut World) {
         };
 
         let mut transf = Transform::default();
-        transf.set_translation(Vector3::new(500.0, 100.0, 500.0));
+        transf.set_translation(Vector3::new(10.0, 30.0, 10.0));
 
         world
             .create_entity()

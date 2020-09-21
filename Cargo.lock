@@ -300,20 +300,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "amethyst_physics_test"
-version = "0.1.0"
-dependencies = [
- "amethyst",
- "amethyst_nphysics",
- "amethyst_physics",
- "lazy_static",
- "noise",
- "rand 0.7.3",
- "ron 0.6.2",
- "serde",
-]
-
-[[package]]
 name = "amethyst_rendy"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1650,6 +1636,21 @@ checksum = "5b47b4c4e017b01abdc5bcc126d2d1002e5a75bbe3ce73f9f4f311a916363704"
 dependencies = [
  "byteorder",
  "rayon",
+]
+
+[[package]]
+name = "kyro"
+version = "0.1.0"
+dependencies = [
+ "amethyst",
+ "amethyst_nphysics",
+ "amethyst_physics",
+ "lazy_static",
+ "noise",
+ "rand 0.7.3",
+ "ron 0.6.2",
+ "serde",
+ "splines",
 ]
 
 [[package]]
@@ -3441,6 +3442,12 @@ dependencies = [
  "shrev",
  "specs",
 ]
+
+[[package]]
+name = "splines"
+version = "3.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c220315a4313febc296e896d243098e033f0e6623a83429a33b9d3bcfd1995b0"
 
 [[package]]
 name = "stable_deref_trait"

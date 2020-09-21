@@ -1,7 +1,7 @@
 [package]
-name = "amethyst_physics_test"
+name = "kyro"
 version = "0.1.0"
-authors = ["Andrea Catania <info@andreacatania.com>"]
+authors = ["AmethystGear <shivenbhatt@outlook.com>"]
 edition = "2018"
 
 [dependencies]
@@ -13,3 +13,4 @@ noise = "0.6.0"
 ron = "0.6.2"
 serde = { version = "1.0.116", features = ["derive"] }
 lazy_static = "1.4.0"
+splines = "3.4.1"

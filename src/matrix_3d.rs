@@ -1,29 +1,29 @@
 pub struct Matrix3D {
-    x : usize,
-    y : usize,
-    z : usize,
-    elems : Vec<f32>
+    x: usize,
+    y: usize,
+    z: usize,
+    elems: Vec<f32>,
 }
 
 impl Matrix3D {
-    pub fn new(x : usize, y : usize, z : usize) -> Self {
+    pub fn new(x: usize, y: usize, z: usize) -> Self {
         Matrix3D {
             x,
             y,
             z,
-            elems: vec![0.0; x * y * z]
+            elems: vec![0.0; x * y * z],
         }
     }
 
-    fn index(&self, x : usize, y : usize, z : usize) -> usize {
+    fn index(&self, x: usize, y: usize, z: usize) -> usize {
         return z * self.x * self.y + y * self.x + x;
     }
 
-    pub fn get(&self, x : usize, y : usize, z : usize) -> f32 {
+    pub fn get(&self, x: usize, y: usize, z: usize) -> f32 {
         return self.elems[self.index(x, y, z)];
     }
 
-    pub fn set(&mut self, x : usize, y : usize, z : usize, val : f32) {
+    pub fn set(&mut self, x: usize, y: usize, z: usize, val: f32) {
         let index = self.index(x, y, z);
         self.elems[index] = val;
     }
@@ -38,5 +38,21 @@ impl Matrix3D {
 
     pub fn z(&self) -> usize {
         return self.z;
+    }
+
+    pub fn print(&self) {
+        for z in 0..self.z {
+            for y in 0..self.y {
+                for x in 0..self.x {
+                    if self.elems[self.index(x, y, z)] < 0.0 {
+                        print!("XX");
+                    } else {
+                        print!("__");
+                    }
+                }
+                println!("");
+            }
+            println!("\n");
+        }
     }
 }
