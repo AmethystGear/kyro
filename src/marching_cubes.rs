@@ -6,43 +6,29 @@ use serde::Deserialize;
 use std::fs;
 
 lazy_static! {
+    static ref TRIANGULATION: Triangulation = {
+        return from_str(&fs::read_to_string("assets/triangulation.ron").unwrap()).unwrap();
+    };
+
     static ref TRI_TABLE: Vec<Vec<u8>> = {
-        let triangulation: Triangulation =
-            from_str(&fs::read_to_string("assets/triangulation.ron").unwrap()).unwrap();
-        return triangulation.triangulation_table;
+        return TRIANGULATION.triangulation_table.clone();
+    };
+
+    static ref CUBE_POINTS: Vec<(usize, usize, usize)> = {
+        return TRIANGULATION.cube_points.clone();
+    };
+
+    static ref CUBE_EDGES: Vec<(usize, usize)> = {
+        return TRIANGULATION.cube_edges.clone();
     };
 }
 
 #[derive(Deserialize)]
 struct Triangulation {
     triangulation_table: Vec<Vec<u8>>,
+    cube_points: Vec<(usize, usize, usize)>,
+    cube_edges: Vec<(usize, usize)>
 }
-
-const CUBE_POINTS: [(usize, usize, usize); 8] = [
-    (0, 0, 0),
-    (1, 0, 0),
-    (1, 0, 1),
-    (0, 0, 1),
-    (0, 1, 0),
-    (1, 1, 0),
-    (1, 1, 1),
-    (0, 1, 1),
-];
-
-const CUBE_EDGES: [(usize, usize); 12] = [
-    (0, 1),
-    (1, 2),
-    (2, 3),
-    (3, 0),
-    (4, 5),
-    (5, 6),
-    (6, 7),
-    (7, 4),
-    (0, 4),
-    (1, 5),
-    (2, 6),
-    (3, 7),
-];
 
 const CUTOFF: f32 = 0.0;
 
@@ -115,7 +101,7 @@ pub fn get_mesh_data(matrix: &Matrix3D, scale: f32) -> MeshData {
         for y in 0..(matrix.y() - 1) {
             for x in 0..(matrix.x() - 1) {
                 let pts = correct(get_cube_tris(matrix, x, y, z), scale, (x, y, z));
-                    
+
                 for pt in &pts {
                     posns.push(Position {
                         0: [pt.0, pt.1, pt.2],

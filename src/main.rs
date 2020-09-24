@@ -5,7 +5,6 @@ use amethyst::{
         transform::{Transform, TransformBundle},
         Parent,
     },
-    ecs::Entity,
     input::{InputBundle, StringBindings},
     prelude::*,
     renderer::{
@@ -60,9 +59,15 @@ impl SimpleState for Example {
 
         // Create terrain
 
-        let mut terrain = Terrain::new(random(), 15, 1.0, 0.05);
+        let mut terrain = Terrain::new(
+            random(),
+            15,
+            1.0,
+            vec![0.3, 0.65, 0.05],
+            vec![0.05, 0.1, 10.0],
+        );
         data.world.register::<components::Chunk>();
-        let size = 3;
+        let size = 5;
         for z in -size..(size + 1) {
             for y in -size..(size + 1) {
                 for x in -size..(size + 1) {
@@ -70,8 +75,6 @@ impl SimpleState for Example {
                 }
             }
         }
-
-        println!("D");
 
         // Create the character + camera.
         create_character_entity(data.world);

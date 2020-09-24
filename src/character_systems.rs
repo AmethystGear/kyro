@@ -13,9 +13,10 @@ use amethyst_physics::prelude::*;
 use crate::components::*;
 
 const MOUSE_SENSITIVITY: f32 = 0.2;
-const MAX_PITCH_ANGLE: f32 = 60.0;
-const FORCE_MULTIPLIER: f32 = 600.0;
-const JUMP_IMPULSE: f32 = 25.0;
+const MAX_PITCH_ANGLE: f32 = 80.0;
+const FORCE_MULTIPLIER: f32 = 200.0;
+const JUMP_IMPULSE: f32 = 30.0;
+const MAX_THRUST_VEL: f32 = 5.0;
 
 #[derive(Debug)]
 pub struct CameraMotionSystem {
@@ -115,10 +116,7 @@ pub struct CharacterMotionControllerSystem {
     horizontal_input: Vector3<f32>,
     vertical_input: f32,
     jump_time: f32,
-    sprint: bool,
-    /// Contact events storage, This motion system is designed to only control a
-    /// single character so store the contacts events here is safe.
-    contact_events: Vec<ContactEvent<f32>>,
+    sprint: bool
 }
 
 impl CharacterMotionControllerSystem {
@@ -128,8 +126,7 @@ impl CharacterMotionControllerSystem {
             horizontal_input: Vector3::zeros(),
             vertical_input: 0.0,
             jump_time: 0.0,
-            sprint: false,
-            contact_events: Vec::new(),
+            sprint: false
         }
     }
 }
@@ -198,7 +195,6 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
                         self.vertical_input -= 1.0;
                     }
                     "Sprint" => {
-                        println!("release sprint");
                         self.sprint = false;
                     }
                     _ => {}
@@ -207,7 +203,6 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
         }
         let horizontal_input;
         if self.sprint {
-            println!("sprinting");
             horizontal_input = self.horizontal_input.scale(3.0);
         } else {
             horizontal_input = self.horizontal_input;
@@ -219,43 +214,15 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
         }
 
         for (body_tag, _) in (&rigid_body_tags, &character_bodies).join() {
-            let is_in_air = {
-                let mut is_in_air = true;
-
-                physics_world
-                    .rigid_body_server()
-                    .contact_events(body_tag.get(), &mut self.contact_events);
-
-                for contact in &self.contact_events {
-                    // Angle in degree between the contact normal and a
-                    // perfectly vertical vector.
-                    let contact_angle = contact
-                        .normal
-                        .dot(&Vector3::new(0.0, 1.0, 0.0))
-                        .acos()
-                        .to_degrees();
-
-                    if contact_angle >= 45.0 {
-                        // Is sliding
-                        // TODO please support sliding
-                    } else {
-                        // Is on ground
-                        is_in_air = false;
-                        break;
-                    }
-                }
-                is_in_air
-            };
-
-            if !is_in_air {
-                // On ground
-                // Apply jumping impulse
-                physics_world.rigid_body_server().apply_impulse(
-                    body_tag.get(),
-                    &Vector3::new(0.0, self.vertical_input * JUMP_IMPULSE, 0.0),
-                );
-                self.jump_time = 0.0;
-            }
+            let velocity = physics_world
+            .rigid_body_server()
+            .linear_velocity(body_tag.get());
+            
+            physics_world.rigid_body_server().apply_force(
+                body_tag.get(),
+                &Vector3::new(0.0, self.vertical_input * JUMP_IMPULSE * 0.0f32.max(MAX_THRUST_VEL - velocity[1]), 0.0),
+            );
+            self.jump_time = 0.0;
 
             // Apply motion force
             let mut force = camera_pos.transform_vector(&horizontal_input);
@@ -265,10 +232,6 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
                 .apply_force(body_tag.get(), &(force * FORCE_MULTIPLIER));
 
             // Compute breaking force
-            let velocity = physics_world
-                .rigid_body_server()
-                .linear_velocity(body_tag.get());
-
             let mut bk_force = (velocity / physics_time.delta_seconds()) * -1.0;
             bk_force.y = 0.0;
             physics_world

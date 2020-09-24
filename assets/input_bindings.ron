@@ -7,10 +7,6 @@ actions: {
     "Right": [[Key(A)]],
     "Left": [[Key(D)]],
     "Jump": [[Key(Space)]],
-    "Sprint": [[Key(LShift)]],
-    "UpArrow": [[Key(Up)]],
-    "DownArrow": [[Key(Down)]],
-    "LeftArrow": [[Key(Left)]],
-    "RightArrow": [[Key(Right)]]
+    "Sprint": [[Key(LShift)]]
 },
 )

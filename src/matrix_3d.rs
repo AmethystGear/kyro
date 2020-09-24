@@ -39,20 +39,4 @@ impl Matrix3D {
     pub fn z(&self) -> usize {
         return self.z;
     }
-
-    pub fn print(&self) {
-        for z in 0..self.z {
-            for y in 0..self.y {
-                for x in 0..self.x {
-                    if self.elems[self.index(x, y, z)] < 0.0 {
-                        print!("XX");
-                    } else {
-                        print!("__");
-                    }
-                }
-                println!("");
-            }
-            println!("\n");
-        }
-    }
 }
