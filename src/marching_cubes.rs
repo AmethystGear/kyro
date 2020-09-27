@@ -4,6 +4,9 @@ use lazy_static::lazy_static;
 use ron::from_str;
 use serde::Deserialize;
 use std::fs;
+use amethyst::core::math::{
+    Vector2, Vector3, //Matrix3
+};
 
 lazy_static! {
     static ref TRIANGULATION: Triangulation = {
@@ -32,15 +35,16 @@ struct Triangulation {
 
 const CUTOFF: f32 = 0.0;
 
-fn get_cube_tris(matrix: &Matrix3D, x: usize, y: usize, z: usize) -> Vec<(f32, f32, f32)> {
+fn get_cube_tris(matrix: &Matrix3D, vector: Vector3<usize>) -> Vec<Vector3<f32>> {
     let mut tris = vec![];
     let mut id = 0;
     let mut vals = [0.0; 8];
     for i in 0..8 {
-        let val = matrix.get(
-            x + CUBE_POINTS[i].0,
-            y + CUBE_POINTS[i].1,
-            z + CUBE_POINTS[i].2,
+        let points = &CUBE_POINTS[i];
+        let val = matrix.get(Vector3::new(
+            vector.x + points.0,
+            vector.y + points.1,
+            vector.z + points.2)
         );
         vals[i] = val;
         if val < CUTOFF {
@@ -71,23 +75,23 @@ fn get_cube_tris(matrix: &Matrix3D, x: usize, y: usize, z: usize) -> Vec<(f32, f
             let x = start.0 as f32 * start_weight + end.0 as f32 * end_weight;
             let y = start.1 as f32 * start_weight + end.1 as f32 * end_weight;
             let z = start.2 as f32 * start_weight + end.2 as f32 * end_weight;
-            tris.push((x, y, z));
+            tris.push(Vector3::new(x, y, z));
         }
     }
     return tris;
 }
 
 fn correct(
-    pts: Vec<(f32, f32, f32)>,
+    pts: Vec<Vector3<f32>>,
     scale: f32,
-    displace: (usize, usize, usize),
-) -> Vec<(f32, f32, f32)> {
+    displace: Vector3<usize>,
+) -> Vec<Vector3<f32>> {
     let mut new = vec![];
     for pt in pts {
-        new.push((
-            pt.0 * scale + displace.0 as f32 * scale,
-            pt.1 * scale + displace.1 as f32 * scale,
-            pt.2 * scale + displace.2 as f32 * scale,
+        new.push(Vector3::new(
+            pt.x * scale + displace.x as f32 * scale,
+            pt.y * scale + displace.y as f32 * scale,
+            pt.z * scale + displace.z as f32 * scale,
         ))
     }
     return new;
@@ -100,21 +104,19 @@ pub fn get_mesh_data(matrix: &Matrix3D, scale: f32) -> MeshData {
     for z in 0..(matrix.z() - 1) {
         for y in 0..(matrix.y() - 1) {
             for x in 0..(matrix.x() - 1) {
-                let pts = correct(get_cube_tris(matrix, x, y, z), scale, (x, y, z));
+                let vec3 = Vector3::new(x, y, z);
+                let pts = correct(get_cube_tris(matrix, vec3), scale, vec3);
 
                 for pt in &pts {
                     posns.push(Position {
-                        0: [pt.0, pt.1, pt.2],
+                        0: [pt.x, pt.y, pt.z],
                     });
                 }
                 for i in 0..pts.len() / 3 {
-                    let normal = cross(
-                        sub(pts[i * 3 + 1], pts[i * 3]),
-                        sub(pts[i * 3 + 2], pts[i * 3 + 1]),
-                    );
+                    let normal: Vector3<f32> =  (&pts[i * 3 + 1] - &pts[i * 3]).cross(&(&pts[i * 3 + 2] - &pts[i * 3 + 1]));
                     for _ in 0..3 {
                         norms.push(Normal {
-                            0: [normal.0, normal.1, normal.2],
+                            0: [normal.x, normal.y, normal.z],
                         });
                         coords.push(TexCoord { 0: [0.0, 0.0] });
                     }
@@ -128,7 +130,7 @@ pub fn get_mesh_data(matrix: &Matrix3D, scale: f32) -> MeshData {
         coords,
     };
 }
-
+/*
 fn sub(a: (f32, f32, f32), b: (f32, f32, f32)) -> (f32, f32, f32) {
     return (a.0 - b.0, a.1 - b.1, a.2 - b.2);
 }
@@ -139,7 +141,7 @@ fn cross(a: (f32, f32, f32), b: (f32, f32, f32)) -> (f32, f32, f32) {
         a.2 * b.0 - a.0 * b.2,
         a.0 * b.1 - a.1 * b.0,
     );
-}
+}*/
 
 pub struct MeshData {
     posns: Vec<Position>,

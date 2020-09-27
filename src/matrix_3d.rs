@@ -1,3 +1,5 @@
+use amethyst::core::math::Vector3;
+
 pub struct Matrix3D {
     x: usize,
     y: usize,
@@ -15,16 +17,16 @@ impl Matrix3D {
         }
     }
 
-    fn index(&self, x: usize, y: usize, z: usize) -> usize {
-        return z * self.x * self.y + y * self.x + x;
+    fn index(&self, vec: Vector3<usize>/*x: usize, y: usize, z: usize*/) -> usize {
+        return vec.z * self.x * self.y + vec.y * self.x + vec.x;
     }
 
-    pub fn get(&self, x: usize, y: usize, z: usize) -> f32 {
-        return self.elems[self.index(x, y, z)];
+    pub fn get(&self, vec: Vector3<usize> /*x: usize, y: usize, z: usize*/) -> f32 {
+        return self.elems[self.index(vec)];
     }
 
-    pub fn set(&mut self, x: usize, y: usize, z: usize, val: f32) {
-        let index = self.index(x, y, z);
+    pub fn set(&mut self, vec: Vector3<usize>,/*x: usize, y: usize, z: usize,*/ val: f32) {
+        let index = self.index(vec);
         self.elems[index] = val;
     }
 

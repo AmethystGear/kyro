@@ -151,7 +151,7 @@ fn create_chunk(
         physics_world.rigid_body_server().create(&rb_desc)
     };
     let (indicies, posns, norms, coords) =
-        terrain.get_chunk(chunk_x, chunk_y, chunk_z).get_mesh_data();
+        terrain.get_chunk(Vector3::new(chunk_x, chunk_y, chunk_z)).get_mesh_data();
     if indicies.len() == 0 {
         return;
     }
