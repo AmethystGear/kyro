@@ -1,6 +1,6 @@
 use crate::{marching_cubes, matrix_3d::Matrix3D};
 use amethyst::core::math::Vector3;
-use marching_cubes::MeshData;
+use marching_cubes::{MeshData, TriangulationMethod};
 use noise::{NoiseFn, OpenSimplex, Point3, Seedable};
 use rand::{prelude::StdRng, Rng, SeedableRng};
 use splines::{Interpolation, Key, Spline};
@@ -109,7 +109,12 @@ impl Terrain {
     }
 
     pub fn get_chunk(&self, chunk: Vector3<isize>) -> MeshData {
-        return marching_cubes::get_mesh_data(&self.get_matrix(chunk), self.scale);
+        return marching_cubes::get_mesh_data(
+            &self.get_matrix(chunk),
+            self.scale,
+            TriangulationMethod::BASIC,
+            false,
+        );
     }
 
     pub fn chunk_size(&self) -> f32 {
