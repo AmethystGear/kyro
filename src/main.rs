@@ -136,11 +136,7 @@ fn add_light_entity(world: &mut World, color: Srgb, direction: Vector3<f32>, int
     world.create_entity().with(light).build();
 }
 
-fn create_chunk(
-    world: &mut World,
-    terrain: &mut Terrain,
-    chunk_posn: Vector3<isize>
-) {
+fn create_chunk(world: &mut World, terrain: &mut Terrain, chunk_posn: Vector3<isize>) {
     let rb = {
         let mut rb_desc = RigidBodyDesc::default();
         rb_desc.mode = BodyMode::Static;
@@ -148,8 +144,7 @@ fn create_chunk(
         let physics_world = world.fetch::<PhysicsWorld<f32>>();
         physics_world.rigid_body_server().create(&rb_desc)
     };
-    let (indicies, posns, norms, coords) =
-        terrain.get_chunk(chunk_posn).get_mesh_data();
+    let (indicies, posns, norms, coords) = terrain.get_chunk(chunk_posn).get_mesh_data();
     if indicies.len() == 0 {
         return;
     }

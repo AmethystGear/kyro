@@ -116,7 +116,7 @@ pub struct CharacterMotionControllerSystem {
     horizontal_input: Vector3<f32>,
     vertical_input: f32,
     jump_time: f32,
-    sprint: bool
+    sprint: bool,
 }
 
 impl CharacterMotionControllerSystem {
@@ -126,7 +126,7 @@ impl CharacterMotionControllerSystem {
             horizontal_input: Vector3::zeros(),
             vertical_input: 0.0,
             jump_time: 0.0,
-            sprint: false
+            sprint: false,
         }
     }
 }
@@ -215,12 +215,16 @@ impl<'s> System<'s> for CharacterMotionControllerSystem {
 
         for (body_tag, _) in (&rigid_body_tags, &character_bodies).join() {
             let velocity = physics_world
-            .rigid_body_server()
-            .linear_velocity(body_tag.get());
-            
+                .rigid_body_server()
+                .linear_velocity(body_tag.get());
+
             physics_world.rigid_body_server().apply_force(
                 body_tag.get(),
-                &Vector3::new(0.0, self.vertical_input * JUMP_IMPULSE * 0.0f32.max(MAX_THRUST_VEL - velocity[1]), 0.0),
+                &Vector3::new(
+                    0.0,
+                    self.vertical_input * JUMP_IMPULSE * 0.0f32.max(MAX_THRUST_VEL - velocity[1]),
+                    0.0,
+                ),
             );
             self.jump_time = 0.0;
 
