@@ -71,7 +71,7 @@ impl SimpleState for Example {
         for z in -size..(size + 1) {
             for y in -size..(size + 1) {
                 for x in -size..(size + 1) {
-                    create_chunk(data.world, &mut terrain, x, y, z);
+                    create_chunk(data.world, &mut terrain, Vector3::new(x, y, z));
                 }
             }
         }
@@ -139,9 +139,7 @@ fn add_light_entity(world: &mut World, color: Srgb, direction: Vector3<f32>, int
 fn create_chunk(
     world: &mut World,
     terrain: &mut Terrain,
-    chunk_x: i16,
-    chunk_y: i16,
-    chunk_z: i16,
+    chunk_posn: Vector3<isize>
 ) {
     let rb = {
         let mut rb_desc = RigidBodyDesc::default();
@@ -151,7 +149,7 @@ fn create_chunk(
         physics_world.rigid_body_server().create(&rb_desc)
     };
     let (indicies, posns, norms, coords) =
-        terrain.get_chunk(Vector3::new(chunk_x, chunk_y, chunk_z)).get_mesh_data();
+        terrain.get_chunk(chunk_posn).get_mesh_data();
     if indicies.len() == 0 {
         return;
     }
@@ -194,9 +192,9 @@ fn create_chunk(
 
     let mut transform = Transform::default();
     transform.set_translation_xyz(
-        chunk_x as f32 * terrain.chunk_size(),
-        chunk_y as f32 * terrain.chunk_size(),
-        chunk_z as f32 * terrain.chunk_size(),
+        chunk_posn.x as f32 * terrain.chunk_size(),
+        chunk_posn.y as f32 * terrain.chunk_size(),
+        chunk_posn.z as f32 * terrain.chunk_size(),
     );
     world
         .create_entity()

@@ -3,10 +3,7 @@ use marching_cubes::MeshData;
 use noise::{NoiseFn, OpenSimplex, Point3, Seedable};
 use rand::{prelude::StdRng, Rng, SeedableRng};
 use splines::{Interpolation, Key, Spline};
-use amethyst::core::math::{
-    Vector3,
-    //Matrix3
-};
+use amethyst::core::math::Vector3;
 
 pub struct Terrain {
     noise: Vec<Box<dyn NoiseFn<Point3<f64>>>>,
@@ -69,37 +66,30 @@ impl Terrain {
             scale,
         }
     }
-    fn scaled_chunk(&self, val: i16 ) -> f32 {
+
+    fn scaled_chunk(&self, val: isize) -> f32 {
         (val as isize * self.points_per_chunk as isize) as f32 * self.scale
     }
 
-    fn true_chunk(&self, chunk: Vector3<i16>) -> Vector3<f32> {
-        Vector3::new( self.scaled_chunk(chunk.x), self.scaled_chunk(chunk.y),self.scaled_chunk(chunk.z) )
+    fn true_chunk(&self, chunk: Vector3<isize>) -> Vector3<f32> {
+        Vector3::new(self.scaled_chunk(chunk.x), self.scaled_chunk(chunk.y),self.scaled_chunk(chunk.z))
     }
 
-    fn scaled_coord(&self, chunk_val: f32, coord_val: usize) -> f32 {
-        chunk_val + coord_val as f32 * self.scale
+    fn true_coord(&self, true_chunk: &Vector3<f32>, posn: &Vector3<usize>) -> Vector3<f32> {
+        return true_chunk + Vector3::new(posn.x as f32, posn.y as f32, posn.z as f32).scale(self.scale);
     }
 
-    fn true_coord(&self, tchunk: &Vector3<f32>, x: usize, y: usize, z: usize) -> Vector3<f32> {
-        Vector3::new(
-            self.scaled_coord(tchunk.x, x),
-            self.scaled_coord(tchunk.y, y),
-            self.scaled_coord(tchunk.z, z)
-        )
-    }
-
-    fn get_matrix(&self, chunk: Vector3<i16>) -> Matrix3D {
+    fn get_matrix(&self, chunk: Vector3<isize>) -> Matrix3D {
         let points = self.points_per_chunk as usize + 1;
         let mut matrix = Matrix3D::new(
-            points, points, points
+            Vector3::new(points, points, points)
         );
 
         let true_chunk = self.true_chunk(chunk);
         for z in 0..points {
             for y in 0..points {
                 for x in 0..points {
-                    let true_coord: Vector3<f32> = self.true_coord(&true_chunk, x, y, z);
+                    let true_coord: Vector3<f32> = self.true_coord(&true_chunk, &Vector3::new(x, y, z));
                     let mut val = 0.0;
                     for i in 0..self.noise.len() {
                         val += self.noise[i].get([
@@ -121,7 +111,7 @@ impl Terrain {
         return matrix;
     }
 
-    pub fn get_chunk(&self, chunk: Vector3<i16> /*chunk_x: i16, chunk_y: i16, chunk_z: i16*/) -> MeshData {
+    pub fn get_chunk(&self, chunk: Vector3<isize>) -> MeshData {
         return marching_cubes::get_mesh_data(
             &self.get_matrix(chunk),
             self.scale,
