@@ -113,7 +113,7 @@ impl Terrain {
             &self.get_matrix(chunk),
             self.scale,
             TriangulationMethod::BASIC,
-            false,
+            true,
         );
     }
 
