@@ -1,18 +1,24 @@
 use crate::{marching_cubes, matrix_3d::Matrix3D};
 use amethyst::core::math::Vector3;
 use marching_cubes::{MeshData, TriangulationMethod};
-use noise::{NoiseFn, OpenSimplex, Point3, Seedable};
+use noise::{NoiseFn, OpenSimplex, Seedable};
 use rand::{prelude::StdRng, Rng, SeedableRng};
 use splines::{Interpolation, Key, Spline};
 
 pub struct Terrain {
-    noise: Vec<Box<dyn NoiseFn<Point3<f64>>>>,
+    noise: Vec<OpenSimplex>,
     noise_weights: Vec<f32>,
     noise_scales: Vec<f32>,
     upper_bound: Spline<f32, f32>,
     lower_bound: Spline<f32, f32>,
     points_per_chunk: u8,
     scale: f32,
+}
+
+impl std::default::Default for Terrain {
+    fn default() -> Self {
+        Terrain::new(0, 0, 0.0, vec![], vec![])
+    }
 }
 
 impl Terrain {
@@ -24,14 +30,15 @@ impl Terrain {
         noise_scales: Vec<f32>,
     ) -> Self {
         let bytes: [u8; 16] = seed.to_be_bytes();
+
         let mut seed: [u8; 32] = [0; 32];
         for i in 0..32 {
             seed[i] = bytes[i % 16];
         }
         let mut rng: StdRng = SeedableRng::from_seed(seed);
-        let mut noise: Vec<Box<dyn NoiseFn<Point3<f64>>>> = vec![];
+        let mut noise = vec![];
         for _ in 0..noise_weights.len() {
-            noise.push(Box::new(OpenSimplex::new().set_seed(rng.gen())));
+            noise.push(OpenSimplex::new().set_seed(rng.gen()));
         }
 
         let floor = -140.0;
@@ -67,7 +74,7 @@ impl Terrain {
         }
     }
 
-    fn true_chunk(&self, chunk: Vector3<isize>) -> Vector3<f32> {
+    fn true_chunk(&self, chunk: &Vector3<isize>) -> Vector3<f32> {
         return Vector3::new(chunk.x as f32, chunk.y as f32, chunk.z as f32)
             .scale(self.points_per_chunk as f32 * self.scale);
     }
@@ -77,7 +84,7 @@ impl Terrain {
             + Vector3::new(posn.x as f32, posn.y as f32, posn.z as f32).scale(self.scale);
     }
 
-    fn get_matrix(&self, chunk: Vector3<isize>) -> Matrix3D {
+    fn get_matrix(&self, chunk: &Vector3<isize>) -> Matrix3D {
         let points = self.points_per_chunk as usize + 1;
         let mut matrix = Matrix3D::new(Vector3::new(points, points, points));
 
@@ -108,7 +115,7 @@ impl Terrain {
         return matrix;
     }
 
-    pub fn get_chunk(&self, chunk: Vector3<isize>) -> MeshData {
+    pub fn get_chunk(&self, chunk: &Vector3<isize>) -> MeshData {
         return marching_cubes::get_mesh_data(
             &self.get_matrix(chunk),
             self.scale,

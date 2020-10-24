@@ -1,19 +1,19 @@
 use amethyst::{
-    assets::{AssetStorage, Handle, Loader},
-    ecs::prelude::*,
+    assets::{self, AssetStorage, Handle},
     renderer::{mtl, palette::LinSrgba, rendy::texture, types},
 };
 
 pub fn create_material(
-    world: &World,
+    loader: &assets::Loader,
+    tex_storage: &AssetStorage<types::Texture>,
+    mat_storage: &AssetStorage<mtl::Material>,
+    mat_defaults: &mtl::MaterialDefaults,
     color: LinSrgba,
     metallic: f32,
     roughness: f32,
 ) -> Handle<mtl::Material> {
-    let loader = world.read_resource::<Loader>();
-
     // Material creation
-    let asset_storage = world.read_resource::<AssetStorage<types::Texture>>();
+    let asset_storage = tex_storage;
     let albedo = loader.load_from_data(
         texture::palette::load_from_linear_rgba(color).into(),
         (),
@@ -27,8 +27,8 @@ pub fn create_material(
         &asset_storage,
     );
 
-    let asset_storage = world.read_resource::<AssetStorage<mtl::Material>>();
-    let mat_defaults = world.read_resource::<mtl::MaterialDefaults>().0.clone();
+    let asset_storage = mat_storage;
+    let mat_defaults = mat_defaults.0.clone();
 
     loader.load_from_data(
         mtl::Material {

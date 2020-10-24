@@ -1,4 +1,5 @@
-use amethyst::ecs::{storage::NullStorage, Component};
+use amethyst::ecs::{storage::{NullStorage, VecStorage}, Component};
+use amethyst::core::math::Vector3;
 
 /// Camera Boom handle tag, used to identify the camera boom handle entity
 #[derive(Default)]

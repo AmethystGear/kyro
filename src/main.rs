@@ -24,12 +24,14 @@ use amethyst::{
     Error,
 };
 use rand::prelude::*;
+use std::collections::HashSet;
 
 use amethyst_nphysics::NPhysicsBackend;
 use amethyst_physics::{prelude::*, PhysicsBundle};
 use renderer::rendy::mesh::Indices;
 
 mod character_systems;
+mod chunk_system;
 mod components;
 mod marching_cubes;
 mod matrix_3d;
@@ -47,34 +49,20 @@ impl SimpleState for Example {
         add_light_entity(
             data.world,
             Srgb::new(1.0, 1.0, 1.0),
-            Vector3::new(-0.1, -1.0, -0.1),
+            Vector3::new(0.0, -1.0, 0.0),
             1.0,
-        );
-        add_light_entity(
-            data.world,
-            Srgb::new(1.0, 1.0, 1.0),
-            Vector3::new(0.1, 1.0, 0.1),
-            0.2,
         );
 
         // Create terrain
-
-        let mut terrain = Terrain::new(
+        let terrain = Terrain::new(
             random(),
             15,
             1.0,
             vec![0.3, 0.65, 0.05],
             vec![0.05, 0.1, 10.0],
         );
+        data.world.insert(terrain);
         data.world.register::<components::Chunk>();
-        let size = 5;
-        for z in -size..(size + 1) {
-            for y in -size..(size + 1) {
-                for x in -size..(size + 1) {
-                    create_chunk(data.world, &mut terrain, Vector3::new(x, y, z));
-                }
-            }
-        }
 
         // Create the character + camera.
         create_character_entity(data.world);
@@ -109,6 +97,10 @@ fn main() -> Result<(), Error> {
                     character_systems::CharacterMotionControllerSystem::new(),
                     String::from("character_motion_controller"),
                     vec![],
+                ).with_pre_physics(
+                    chunk_system::ChunkSystem { chunk_posns: HashSet::new() },
+                    String::from("chunk system"),
+                    vec![],
                 ),
         )?
         .with_bundle(
@@ -134,80 +126,6 @@ fn add_light_entity(world: &mut World, color: Srgb, direction: Vector3<f32>, int
     .into();
 
     world.create_entity().with(light).build();
-}
-
-fn create_chunk(world: &mut World, terrain: &mut Terrain, chunk_posn: Vector3<isize>) {
-    let rb = {
-        let mut rb_desc = RigidBodyDesc::default();
-        rb_desc.mode = BodyMode::Static;
-
-        let physics_world = world.fetch::<PhysicsWorld<f32>>();
-        physics_world.rigid_body_server().create(&rb_desc)
-    };
-    let (indicies, posns, norms, coords) = terrain.get_chunk(chunk_posn).get_mesh_data();
-    if indicies.len() == 0 {
-        return;
-    }
-    let mut indicies_collision = Vec::new();
-    for i in 0..posns.len() / 3 {
-        indicies_collision.push(Point3::from_slice(&[i * 3, i * 3 + 1, i * 3 + 2]));
-    }
-    let mut points_collision = Vec::new();
-    for p in &posns {
-        points_collision.push(Point3::from_slice(&[p.0[0], p.0[1], p.0[2]]))
-    }
-    let mesh = world.exec(|loader: AssetLoaderSystemData<Mesh>| {
-        loader.load_from_data(
-            MeshData(
-                MeshBuilder::new()
-                    .with_vertices(posns)
-                    .with_vertices(norms)
-                    .with_vertices(coords)
-                    .with_indices(Indices::U16(indicies.into())),
-            ),
-            (),
-        )
-    });
-
-    let shape = {
-        let desc = ShapeDesc::TriMesh {
-            indices: indicies_collision,
-            points: points_collision,
-        };
-        let physics_world = world.fetch::<PhysicsWorld<f32>>();
-        physics_world.shape_server().create(&desc)
-    };
-
-    let mat = visual_utils::create_material(
-        world,
-        LinSrgba::new(0.7188, 0.1578, 0.0, 1.0),
-        0.0, // Metallic
-        1.0, // Roughness
-    );
-
-    let mut transform = Transform::default();
-    transform.set_translation_xyz(
-        chunk_posn.x as f32 * terrain.chunk_size(),
-        chunk_posn.y as f32 * terrain.chunk_size(),
-        chunk_posn.z as f32 * terrain.chunk_size(),
-    );
-    world
-        .create_entity()
-        .with(mesh)
-        .with(mat)
-        .with(BoundingSphere::new(
-            Point3::new(
-                terrain.chunk_size() / 2.0,
-                terrain.chunk_size() / 2.0,
-                terrain.chunk_size() / 2.0,
-            ),
-            terrain.chunk_size() * 1.5,
-        ))
-        .with(transform)
-        .with(shape)
-        .with(rb)
-        .with(components::Chunk)
-        .build();
 }
 
 /// Creates three entities:

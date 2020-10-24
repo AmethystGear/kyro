@@ -9,7 +9,7 @@ use std::{collections::HashMap, fs};
 
 #[derive(Eq, PartialEq, Hash, Copy, Clone)]
 pub enum TriangulationMethod {
-    BASIC
+    BASIC,
 }
 
 lazy_static! {
